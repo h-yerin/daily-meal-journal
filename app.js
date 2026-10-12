@@ -52,21 +52,19 @@ async function generateImage(day){
  ctx.fillStyle='#7b8ba1';ctx.font='20px sans-serif';ctx.fillText(`${d.getFullYear()} · ${['일','월','화','수','목','금','토'][d.getDay()]}요일`,1020,122);ctx.textAlign='left';
  const types=TYPES.filter(t=>!t.snack||day.meals[t.key]);
  const top=176,bottom=hasNote?1080:1260,gap=20;
- const heroHeight=types.length===3?Math.round((bottom-top-gap)*.48):Math.round((bottom-top-gap*2)*.32);
- const rows=Math.ceil((types.length-1)/2),tileHeight=(bottom-top-heroHeight-gap*rows)/rows;
+ const rowHeight=(bottom-top-gap*(types.length-1))/types.length;
  for(let i=0;i<types.length;i++){
-  const type=types[i],meal=day.meals[type.key],hero=i===0;
-  const x=hero?60:60+((i-1)%2)*490,y=hero?top:top+heroHeight+gap+Math.floor((i-1)/2)*(tileHeight+gap);
-  const w=hero?960:470,h=hero?heroHeight:tileHeight;
+  const type=types[i],meal=day.meals[type.key];
+  const x=60,y=top+i*(rowHeight+gap),w=960,h=rowHeight;
   ctx.save();ctx.shadowColor='#25456B0B';ctx.shadowBlur=18;ctx.shadowOffsetY=5;rounded(ctx,x,y,w,h,30,'#FFFFFF');ctx.restore();
-  const px=x+18,py=y+18,pw=hero?Math.round(w*.56):w-36,ph=hero?h-36:Math.max(80,h-112);
+  const px=x+18,py=y+18,ph=h-36,pw=ph;
   rounded(ctx,px,py,pw,ph,22,'#EDF4FF');
   if(meal?.photo){const img=await loadImage(meal.photo),scale=Math.max(pw/img.width,ph/img.height);ctx.save();ctx.beginPath();ctx.roundRect(px,py,pw,ph,22);ctx.clip();ctx.drawImage(img,px+(pw-img.width*scale)/2,py+(ph-img.height*scale)/2,img.width*scale,img.height*scale);ctx.restore();}
   else{ctx.fillStyle='#AEC9EE';ctx.textAlign='center';ctx.font='44px sans-serif';ctx.fillText(type.symbol,px+pw/2,py+ph/2+12);ctx.textAlign='left';}
-  const tx=hero?px+pw+28:x+24,ty=hero?y+Math.max(48,h*.32):py+ph+31,tw=hero?w-pw-82:w-48;
+  const tx=px+pw+30,ty=y+Math.max(40,h*.32),tw=w-pw-84;
   ctx.fillStyle='#3182F6';ctx.font=`bold ${type.snack?18:20}px sans-serif`;ctx.fillText(type.label,tx,ty);
-  ctx.fillStyle='#25344a';ctx.font=`bold ${hero?32:24}px sans-serif`;
-  wrap(ctx,type.snack?meal.menu:(meal?.photo?meal.menu:'식사하지 않았어요'),tx,ty+(hero?49:34),tw,hero?42:30,hero?3:1);
+  ctx.fillStyle='#25344a';ctx.font='bold 30px sans-serif';
+  wrap(ctx,type.snack?meal.menu:(meal?.photo?meal.menu:'식사하지 않았어요'),tx,ty+45,tw,36,types.length>3?2:3);
  }
  if(hasNote){rounded(ctx,60,1100,960,160,28,'#FFFFFF');ctx.fillStyle='#3182F6';ctx.font='bold 20px sans-serif';ctx.fillText('오늘의 한마디',88,1138);ctx.fillStyle='#25344a';ctx.font='24px sans-serif';wrap(ctx,day.note,88,1178,904,30,3);}
  ctx.fillStyle='#8b9db5';ctx.font='16px sans-serif';ctx.textAlign='center';ctx.fillText('DAILY MEAL JOURNAL  ·  나만의 하루 식탁',540,1310);
