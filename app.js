@@ -38,21 +38,40 @@ $('backup-file').onchange=async()=>{const file=$('backup-file').files[0];$('back
 function rounded(ctx,x,y,w,h,r,color){ctx.fillStyle=color;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill();}
 function wrap(ctx,text,x,y,maxWidth,lineHeight,maxLines){const chars=Array.from(text),lines=[];let line='';for(const ch of chars){if(ch==='\n'||ctx.measureText(line+ch).width>maxWidth){lines.push(line);line=ch==='\n'?'':ch;}else line+=ch;}lines.push(line);if(lines.length>maxLines){lines.length=maxLines;let last=lines[maxLines-1];while(ctx.measureText(last+'…').width>maxWidth)last=last.slice(0,-1);lines[maxLines-1]=last+'…';}lines.forEach((s,i)=>ctx.fillText(s,x,y+i*lineHeight));}
 function loadImage(src){return new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=()=>reject(new Error('사진을 읽을 수 없어요. 사진을 다시 등록해 주세요.'));img.src=src;});}
-async function generateImage(day){await document.fonts.ready;const canvas=document.createElement('canvas');canvas.width=1080;canvas.height=1350;const ctx=canvas.getContext('2d');ctx.fillStyle='#f7faff';ctx.fillRect(0,0,1080,1350);ctx.fillStyle='#3182F6';ctx.font='18px sans-serif';ctx.fillText('DAILY MEAL JOURNAL',68,70);ctx.fillStyle='#25344a';ctx.font='bold 48px sans-serif';ctx.fillText('하루 한 끼',68,137);ctx.font='24px sans-serif';ctx.fillStyle='#7b8ba1';const d=parseDate(day.date);ctx.fillText(`${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 · ${['일','월','화','수','목','금','토'][d.getDay()]}요일`,68,183);
-const imageTypes=TYPES.filter(t=>!t.snack||day.meals[t.key]);
-const step=810/imageTypes.length, height=step-18, photoSize=height-32;
-for(let i=0;i<imageTypes.length;i++){
- const type=imageTypes[i],meal=day.meals[type.key],y=224+i*step;
- rounded(ctx,60,y,960,height,24,'#ffffff');rounded(ctx,80,y+16,photoSize,photoSize,16,'#edf4ff');
- if(meal?.photo){const img=await loadImage(meal.photo),scale=Math.max(photoSize/img.width,photoSize/img.height);ctx.save();ctx.beginPath();ctx.roundRect(80,y+16,photoSize,photoSize,16);ctx.clip();ctx.drawImage(img,80+(photoSize-img.width*scale)/2,y+16+(photoSize-img.height*scale)/2,img.width*scale,img.height*scale);ctx.restore();}
- else{ctx.fillStyle='#8fa8c9';ctx.font='32px sans-serif';ctx.textAlign='center';ctx.fillText(type.symbol,80+photoSize/2,y+16+photoSize/2+10);ctx.textAlign='left';}
- const x=104+photoSize,width=980-x,compact=imageTypes.length>3;
- ctx.fillStyle='#3182F6';ctx.font='20px sans-serif';ctx.fillText(type.snack?type.label:`${type.label}  /  ${type.en}`,x,y+36);
- ctx.fillStyle='#25344a';ctx.font=`bold ${compact?26:30}px sans-serif`;
- wrap(ctx,type.snack?meal.menu:(meal?.photo?meal.menu:'식사하지 않았어요'),x,y+76,width,compact?32:40,2);
- if(!compact){ctx.fillStyle='#7b8ba1';ctx.font='20px sans-serif';wrap(ctx,meal?.photo?meal.memo||'':'',x,y+height-45,width,27,2);}
+async function generateImage(day){
+ await document.fonts.ready;
+ const canvas=document.createElement('canvas');canvas.width=1080;canvas.height=1350;
+ const ctx=canvas.getContext('2d'),d=parseDate(day.date),hasNote=!!day.note.trim();
+ ctx.fillStyle='#F0F5FA';ctx.fillRect(0,0,1080,1350);
+ // A quiet blue wash, white cards, and generous rounded corners.
+ const wash=ctx.createLinearGradient(0,0,1080,650);wash.addColorStop(0,'#E9F3FF');wash.addColorStop(1,'#F0F5FA');ctx.fillStyle=wash;ctx.fillRect(0,0,1080,650);
+ ctx.fillStyle='#25344a';ctx.font='bold 46px sans-serif';ctx.fillText('하루 한 끼',60,96);
+ ctx.fillStyle='#3182F6';ctx.fillText('·',286,96);
+ ctx.font='18px sans-serif';ctx.fillText('MY DAILY TABLE',62,134);
+ ctx.textAlign='right';ctx.fillStyle='#25344a';ctx.font='bold 28px sans-serif';ctx.fillText(`${d.getMonth()+1}월 ${d.getDate()}일`,1020,85);
+ ctx.fillStyle='#7b8ba1';ctx.font='20px sans-serif';ctx.fillText(`${d.getFullYear()} · ${['일','월','화','수','목','금','토'][d.getDay()]}요일`,1020,122);ctx.textAlign='left';
+ const types=TYPES.filter(t=>!t.snack||day.meals[t.key]);
+ const top=176,bottom=hasNote?1080:1260,gap=20;
+ const heroHeight=types.length===3?Math.round((bottom-top-gap)*.48):Math.round((bottom-top-gap*2)*.32);
+ const rows=Math.ceil((types.length-1)/2),tileHeight=(bottom-top-heroHeight-gap*rows)/rows;
+ for(let i=0;i<types.length;i++){
+  const type=types[i],meal=day.meals[type.key],hero=i===0;
+  const x=hero?60:60+((i-1)%2)*490,y=hero?top:top+heroHeight+gap+Math.floor((i-1)/2)*(tileHeight+gap);
+  const w=hero?960:470,h=hero?heroHeight:tileHeight;
+  ctx.save();ctx.shadowColor='#25456B0B';ctx.shadowBlur=18;ctx.shadowOffsetY=5;rounded(ctx,x,y,w,h,30,'#FFFFFF');ctx.restore();
+  const px=x+18,py=y+18,pw=hero?Math.round(w*.56):w-36,ph=hero?h-36:Math.max(80,h-112);
+  rounded(ctx,px,py,pw,ph,22,'#EDF4FF');
+  if(meal?.photo){const img=await loadImage(meal.photo),scale=Math.max(pw/img.width,ph/img.height);ctx.save();ctx.beginPath();ctx.roundRect(px,py,pw,ph,22);ctx.clip();ctx.drawImage(img,px+(pw-img.width*scale)/2,py+(ph-img.height*scale)/2,img.width*scale,img.height*scale);ctx.restore();}
+  else{ctx.fillStyle='#AEC9EE';ctx.textAlign='center';ctx.font='44px sans-serif';ctx.fillText(type.symbol,px+pw/2,py+ph/2+12);ctx.textAlign='left';}
+  const tx=hero?px+pw+28:x+24,ty=hero?y+Math.max(48,h*.32):py+ph+31,tw=hero?w-pw-82:w-48;
+  ctx.fillStyle='#3182F6';ctx.font=`bold ${type.snack?18:20}px sans-serif`;ctx.fillText(type.label,tx,ty);
+  ctx.fillStyle='#25344a';ctx.font=`bold ${hero?32:24}px sans-serif`;
+  wrap(ctx,type.snack?meal.menu:(meal?.photo?meal.menu:'식사하지 않았어요'),tx,ty+(hero?49:34),tw,hero?42:30,hero?3:1);
+ }
+ if(hasNote){rounded(ctx,60,1100,960,160,28,'#FFFFFF');ctx.fillStyle='#3182F6';ctx.font='bold 20px sans-serif';ctx.fillText('오늘의 한마디',88,1138);ctx.fillStyle='#25344a';ctx.font='24px sans-serif';wrap(ctx,day.note,88,1178,904,30,3);}
+ ctx.fillStyle='#8b9db5';ctx.font='16px sans-serif';ctx.textAlign='center';ctx.fillText('DAILY MEAL JOURNAL  ·  나만의 하루 식탁',540,1310);
+ return new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('이미지 생성에 실패했어요.')),'image/png'));
 }
-rounded(ctx,60,1055,960,204,24,'#edf4ff');ctx.fillStyle='#276bd0';ctx.font='20px sans-serif';ctx.fillText('오늘의 한마디',88,1099);ctx.fillStyle='#25344a';ctx.font='24px sans-serif';wrap(ctx,day.note||'오늘의 식탁, 작은 일상의 기록.',88,1143,900,32,3);ctx.fillStyle='#8b9db5';ctx.font='16px sans-serif';ctx.textAlign='center';ctx.fillText('A LITTLE RECORD OF YOUR EVERYDAY',540,1310);return new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('이미지 생성에 실패했어요.')),'image/png'));}
 $('export-image').onclick=async()=>{if($('daily-note').value!==(records.get(selected)?.note||'')){notify('이미지에 담을 한마디를 먼저 저장해 주세요.');return;}$('export-image').disabled=true;notify('오늘의 식탁 이미지를 만들고 있어요…');try{resultBlob=await generateImage(current());if($('result-image').src.startsWith('blob:'))URL.revokeObjectURL($('result-image').src);const url=URL.createObjectURL(resultBlob);$('result-image').src=url;$('download-image').href=url;$('download-image').download=`daily-meal-${selected}.png`;$('share-image').hidden=!navigator.canShare?.({files:[new File([resultBlob],'meal.png',{type:'image/png'})]});$('image-dialog').showModal();notify('이미지가 준비됐어요. PNG 다운로드를 눌러 저장하세요.');}catch(e){notify(e.message);}finally{$('export-image').disabled=false;}};
 $('close-image').onclick=()=>$('image-dialog').close();$('download-image').onclick=()=>notify('이미지 저장을 요청했어요. 다운로드 또는 사진 앱을 확인해 주세요.');$('share-image').onclick=async()=>{try{await navigator.share({files:[new File([resultBlob],$('download-image').download,{type:'image/png'})]});}catch(e){if(e.name!=='AbortError')notify('공유할 수 없어요. PNG 다운로드를 이용해 주세요.');}};
 window.addEventListener('beforeunload',e=>{if($('daily-note').value!==(records.get(selected)?.note||'')){e.preventDefault();e.returnValue='';}});
