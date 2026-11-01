@@ -89,7 +89,28 @@ function paint(d,photos){
  if(memo){leaf(347,1324,.65);paw(389,1317,.75);textBlock(memo,418,1296,288,48,29);heart(714,1307,16);paw(759,1317,.75);leaf(798,1324,.65);ln(902,1320,1034,1320,"#70502e",2);cat(969,1291,.82,false,true);heart(1006,1251,13)}
 }
 const posterFontReady=document.fonts.load('700 36px "JournalHand"');
-async function renderPoster(){const id=++renderId,d=structuredClone(data);await posterFontReady;const p=await Promise.all(MEALS.map(async ([k])=>({main:await load(d.meals[k].photo),snack:await load(d.meals[k].snack.photo)})));if(id===renderId)paint(d,p)}
+let shareFile=null,shareInFlight=false;
+function shareMessage(message){$("share-status").textContent=message;$("share-status").hidden=!message}
+function prepareShareImage(id,date){
+ if(typeof navigator.share!=="function"||typeof navigator.canShare!=="function")return;
+ canvas.toBlob(blob=>{
+  if(id!==renderId||!blob)return;
+  const file=new File([blob],"식단일기_"+date+".png",{type:"image/png"});
+  try{if(!navigator.canShare({files:[file]}))return}catch(e){return}
+  shareFile=file;$("share-image").hidden=false;$("share-image").disabled=shareInFlight;
+ },"image/png");
+}
+async function renderPoster(){const id=++renderId,d=structuredClone(data);shareFile=null;$("share-image").disabled=true;await posterFontReady;const p=await Promise.all(MEALS.map(async ([k])=>({main:await load(d.meals[k].photo),snack:await load(d.meals[k].snack.photo)})));if(id===renderId){paint(d,p);prepareShareImage(id,d.date)}}
+$("share-image").onclick=async()=>{
+ if(shareInFlight)return;
+ if(photoPending||!shareFile){shareMessage("이미지를 준비하고 있어요. 잠시 후 다시 눌러주세요.");return}
+ shareInFlight=true;$("share-image").disabled=true;shareMessage("");
+ try{
+  // Use the prepared PNG immediately: iOS requires the original tap activation.
+  await navigator.share({files:[shareFile]});
+ }catch(e){if(e.name!=="AbortError")shareMessage("공유할 수 없어요. PNG 이미지 저장을 이용해 주세요.")}
+ finally{shareInFlight=false;$("share-image").disabled=!shareFile}
+};
 $("dates").onclick=e=>{const b=e.target.closest("[data-date]");if(b)change(b.dataset.date)};$("prev").onclick=()=>{month=new Date(month.getFullYear(),month.getMonth()-1,1);calendar()};$("next").onclick=()=>{month=new Date(month.getFullYear(),month.getMonth()+1,1);calendar()};$("today").onclick=()=>change(todayKey());
 $("forms").onclick=e=>{const b=e.target.closest("button");if(!b||busy||photoPending)return;if(b.dataset.state){const m=data.meals[b.dataset.id];if(b.dataset.state==="none"&&(m.items||m.photo||m.memo)&&!confirm("식사 기록을 지울까요? 간식 기록은 유지됩니다."))return;m.status=b.dataset.state;if(m.status==="none"){m.items="";m.photo="";m.memo=""}render();later()}else if(b.dataset.snackToggle){const id=b.dataset.snackToggle,m=data.meals[id];if(m.snack.items.trim()||m.snack.photo||m.snack.memo?.trim()){if(!confirm("이 끼니의 간식·후식 기록을 삭제할까요?"))return;m.snack={items:"",photo:"",memo:""};render();later()}else{$("s-"+id).classList.add("show");$("s-"+id).nextElementSibling.classList.add("show");$("s-"+id).querySelector("textarea").focus()}}else if(b.dataset.remove){const m=data.meals[b.dataset.remove];if(b.dataset.kind==="snack")m.snack.photo="";else m.photo="";render();later()}};
 $("forms").oninput=e=>{if(e.target.dataset.items)data.meals[e.target.dataset.items].items=e.target.value;else if(e.target.dataset.snack)data.meals[e.target.dataset.snack].snack.items=e.target.value;else if(e.target.dataset.mealMemo)data.meals[e.target.dataset.mealMemo].memo=e.target.value;else if(e.target.dataset.snackMemo)data.meals[e.target.dataset.snackMemo].snack.memo=e.target.value;else return;later()};

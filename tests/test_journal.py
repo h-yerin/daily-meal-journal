@@ -139,6 +139,58 @@ class JournalTests(unittest.TestCase):
         self.assertEqual(self.rows(),before)
         self.assertTrue(self.page.evaluate('async()=>{await posterFontReady;return document.fonts.check(\'700 36px "JournalHand"\')}'))
 
+    def enable_share_mock(self):
+        self.page.add_init_script("""window.shared=[];window.shareError=null;
+            Object.defineProperty(navigator,'canShare',{configurable:true,value:({files})=>files?.length===1&&files[0].type==='image/png'});
+            Object.defineProperty(navigator,'share',{configurable:true,value:async ({files})=>{
+                window.shared.push({file:files[0],active:navigator.userActivation.isActive});
+                if(window.shareError)throw new DOMException('test',window.shareError);
+            }});""")
+        self.page.goto(self.url+'/journal/reference.html')
+        expect(self.page.locator('#share-image')).to_be_enabled()
+
+    def test_share_uses_current_png_and_original_tap(self):
+        self.enable_share_mock()
+        self.page.locator('#memo').fill('공유할 최신 메모')
+        expect(self.page.locator('#share-image')).to_be_enabled()
+        self.page.locator('#share-image').click()
+        self.page.wait_for_function('window.shared.length===1&&!shareInFlight')
+        result=self.page.evaluate("""async()=>{
+            const {file,active}=window.shared[0],image=await createImageBitmap(file);
+            const bytes=new Uint8Array(await file.arrayBuffer());
+            let binary='';for(const b of bytes)binary+=String.fromCharCode(b);
+            return {active,name:file.name,type:file.type,width:image.width,height:image.height,
+                matchesPreview:'data:image/png;base64,'+btoa(binary)===canvas.toDataURL(),date:selected};
+        }""")
+        self.assertTrue(result['active']);self.assertTrue(result['matchesPreview'])
+        self.assertEqual(result['name'],'식단일기_'+result['date']+'.png')
+        self.assertEqual((result['width'],result['height']),(1080,1350))
+        self.assertEqual(result['type'],'image/png')
+
+    def test_share_cancel_failure_and_photo_processing(self):
+        self.enable_share_mock()
+        self.page.evaluate("window.shareError='AbortError'")
+        self.page.locator('#share-image').click()
+        expect(self.page.locator('#share-image')).to_be_enabled()
+        expect(self.page.locator('#share-status')).to_be_hidden()
+        self.page.evaluate("window.shareError='NotAllowedError'")
+        self.page.locator('#share-image').click()
+        expect(self.page.locator('#share-status')).to_contain_text('PNG 이미지 저장')
+        self.page.evaluate('photoPending=true')
+        self.page.locator('#share-image').click()
+        expect(self.page.locator('#share-status')).to_contain_text('이미지를 준비')
+        self.assertEqual(self.page.evaluate('window.shared.length'),2)
+        self.page.evaluate('photoPending=false')
+
+    def test_share_unsupported_keeps_download_available(self):
+        self.page.add_init_script("Object.defineProperty(navigator,'canShare',{configurable:true,value:()=>false})")
+        self.page.reload()
+        self.page.evaluate('async()=>await renderPoster()')
+        expect(self.page.locator('#share-image')).to_be_hidden()
+        with self.page.expect_download() as download:self.page.locator('#download').click()
+        png=Path(download.value.path()).read_bytes()
+        self.assertEqual(struct.unpack('>II',png[16:24]),(1080,1350))
+
     def test_calendar_save_failure_keeps_input_and_date(self):
         self.page.locator('#memo').fill('잃으면 안 되는 입력')
         selected=self.page.evaluate('selected')
