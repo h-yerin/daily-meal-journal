@@ -108,6 +108,26 @@ class JournalTests(unittest.TestCase):
         d['memo']='메모 내용';d['meals']['dinner']['snack']['items']='저녁 후식';calls=draw(d)
         self.assertEqual(sum('간식 / 후식' in x['text'] for x in calls),1)
         self.assertTrue(any(x['text']=='메모 내용' for x in calls))
+    def test_reference_photo_layout_and_bundled_font(self):
+        result=self.page.evaluate('''async photoSrc=>{
+            await posterFontReady;
+            const d=blank('2026-11-02');d.meals.breakfast.status='logged';
+            d.meals.breakfast.items='스크램블 에그\\n통밀 토스트';
+            d.meals.breakfast.photo=photoSrc;d.meals.breakfast.snack.photo=photoSrc;
+            d.meals.breakfast.snack.items='블루베리 요거트';
+            const image=await load(photoSrc),boxes=[],original=c.roundRect;
+            c.roundRect=function(x,y,w,h){boxes.push({x,y,w,h});return original.apply(this,arguments)};
+            paint(d,[{main:image,snack:image},{main:null,snack:null},{main:null,snack:null}]);
+            c.roundRect=original;
+            return {font:document.fonts.check('700 36px "JournalHand"'),boxes};
+        }''',PHOTO)
+        self.assertTrue(result['font'])
+        main=[r for r in result['boxes'] if r['x']==59 and r['w']==460]
+        snack=[r for r in result['boxes'] if r['x']==764 and r['w']==248]
+        self.assertEqual(len(main),1);self.assertEqual(len(snack),1)
+        self.assertGreater(main[0]['h'],250)
+        self.assertGreater(snack[0]['h'],150)
+
     def test_calendar_save_failure_keeps_input_and_date(self):
         self.page.locator('#memo').fill('잃으면 안 되는 입력')
         selected=self.page.evaluate('selected')
