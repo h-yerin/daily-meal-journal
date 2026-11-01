@@ -88,4 +88,6 @@ python3 -m unittest discover -s tests -v
 
 Chromium 기본 경로는 `/usr/bin/chromium`이며 `CHROMIUM_PATH`로 변경할 수 있습니다. 테스트는 기존 화면, 원본·동일 날짜 보존, 메모·사진 복사, 세 끼 및 간식 입력, 백업·삭제·복원, 저장 실패 시 입력 유지, PNG 크기·조건부 영역·정렬, 모바일 가로 넘침을 검증합니다.
 
-저장 이미지의 손글씨는 앱에 포함한 Gaegu Bold를 사용합니다. 폰트는 SIL Open Font License로 배포되며 원문은 `journal/fonts/OFL.txt`에 있습니다. 별도 폰트 서비스 연결 없이 같은 글꼴로 이미지를 생성합니다.
+저장 이미지의 손글씨는 앱에 포함한 Gamja Flower를 사용합니다. 폰트는 SIL Open Font License로 배포되며 원문은 `journal/fonts/OFL.txt`에 있습니다. 별도 폰트 서비스 연결 없이 같은 글꼴로 이미지를 생성합니다.
+
+이전 페이지가 브라우저에 남아 있는 경우에는 `journal/reference.html`에서도 같은 새 디자인을 열 수 있습니다. 이 파일은 `journal/index.html`과 동일하며, 같은 도메인의 동일한 IndexedDB를 읽습니다. 기록을 이동하거나 초기화하지 않습니다. 두 진입 파일은 함께 수정하고 테스트에서 내용 일치를 확인합니다.

@@ -128,6 +128,17 @@ class JournalTests(unittest.TestCase):
         self.assertGreater(main[0]['h'],250)
         self.assertGreater(snack[0]['h'],150)
 
+    def test_fresh_entry_shares_existing_data_without_migration(self):
+        self.assertEqual((ROOT/'journal/index.html').read_bytes(),(ROOT/'journal/reference.html').read_bytes())
+        self.page.locator('#memo').fill('보존할 기록')
+        self.page.locator('#save').click()
+        expect(self.page.locator('#status')).to_contain_text('저장 완료')
+        before=self.rows()
+        self.page.goto(self.url+'/journal/reference.html')
+        expect(self.page.locator('#memo')).to_have_value('보존할 기록')
+        self.assertEqual(self.rows(),before)
+        self.assertTrue(self.page.evaluate('async()=>{await posterFontReady;return document.fonts.check(\'700 36px "JournalHand"\')}'))
+
     def test_calendar_save_failure_keeps_input_and_date(self):
         self.page.locator('#memo').fill('잃으면 안 되는 입력')
         selected=self.page.evaluate('selected')
